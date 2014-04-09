@@ -1,0 +1,147 @@
+<!doctype html>
+
+<canvas id="canvas"></canvas>
+
+<script src="bower_components/requirejs/require.js"></script>
+<script>
+  
+  requirejs.config({
+    packages: [
+      { name: 'when', location: '/bower_components/when', main: 'when' }
+    ]
+  });
+  
+  require(['getRadar', 'createImages', 'when'], function(getRadar, createImages, when){
+        
+    getRadar().then(function(data){
+      data.radar.sort(function(a, b){
+        return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+      });
+      return data.radar;
+    }).then(function(available){
+      return when.all(available.map(createImages));
+    }).then(function(images){
+      
+      var index = 0;
+      
+      function showImage(){
+        c.width = images[index].image.width;
+        c.height = images[index].image.height;
+        ctx.drawImage(images[index].image, 0, 0);
+        
+        index = (index + 1) % images.length;
+        
+        window.requestAnimationFrame(showImage);
+      }
+      
+      window.requestAnimationFrame(showImage);
+      
+      
+      console.log("images", images);
+    }).catch(function(err){
+      console.error(err);
+    });
+    
+  });
+  
+  
+  define('getRadar', ['promise', 'ajax'], function(promise, ajax){
+    
+    return ajax.bind(null, "/available");
+    
+  });
+  
+  define('createImages', ['promise'], function(promise){
+    return promise(function(entry, resolve, reject){
+      var obj = {
+        date: Date.parse(entry.date),
+        url: entry.url,
+        image: new Image()
+      };
+      obj.image.src = entry.url;
+      obj.image.onload = function(){
+        resolve(obj);
+      };
+      obj.image.onerror = reject;
+    });
+  });
+  
+  
+  define('ajax', ['promise'], function(promise){
+    
+  
+    return promise(function(url, resolve, reject){
+      console.log("ajax", url);
+      var xhr = new XMLHttpRequest();
+      
+      xhr.onload = function(){
+        console.log(xhr.responseText);
+        resolve(JSON.parse(xhr.responseText));
+      };
+      
+      xhr.onerror = function(){
+        console.log("error", xhr.statusText);
+      };
+      
+      
+      xhr.onreadystatechange = function(){
+        console.log("readystate", xhr.readyState, xhr.status);
+      };
+      
+      
+      xhr.open("get", url, true);
+      xhr.send();
+    });
+
+    
+  });
+  
+  
+  
+  define('promise', ['when'], function(when){
+    
+    return function(promise){
+      return function(data){
+        if(arguments.length == 0){
+          return when.promise(promise);
+        }else{
+          return when.promise(promise.bind(null, data));
+        }
+      };
+    };
+    
+  });
+
+  var c = document.querySelector('canvas');//createElement('canvas');
+  var ctx = c.getContext('2d');
+  
+  
+  
+  
+  
+  function getRadarHistory(){
+    return when.promise(function(resolve){
+      
+      
+    });
+  }
+  
+  function getRadarImage(time){
+    getImage();
+  }
+  
+  
+  function getImage(src){
+    return when.promise(function(resolve){
+      
+      var img = new Image();
+      img.src = src;
+      img.onload = function(){
+        resolve(img);
+      }
+    });
+  }
+
+
+
+</script>

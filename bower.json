@@ -1,0 +1,20 @@
+{
+  "name": "PrecipitationPrediction",
+  "version": "0.0.0",
+  "authors": [
+    "Marius Gundersen <me@mariusgundersen.net>"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "requirejs": "~2.1.11",
+    "when": "~3.1.0"
+  }
+}
