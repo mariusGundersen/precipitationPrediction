@@ -39,7 +39,7 @@
       
       c1.addEventListener('click', function(event){
         images.forEach(function(image){
-          image.rain = rainRadius(image.image, event.clientX, event.clientY);
+          image.rain = rainRadius(image.image, event.x, event.y);
         })
       });
       
@@ -91,8 +91,9 @@
       var imageData = getImageData(image);
       
       var rain = [];
+      var radius = Math.max(_x, _y, imageData.width - _x, imageData.height - _y);
       
-      loop(Math.max(_x, _y, imageData.width - _x, imageData.height - _y), function(x, y){
+      loop(radius, function(x, y){
         if(_x + x < 0
            || _x + x > imageData.width
            || _y + y < 0
@@ -106,7 +107,7 @@
         //console.log(_x + x, _y + y, index, imageData.data[index], imageData.data[index+1], imageData.data[index+2]);
         if(color.h < 100 && color.v > 70){
           imageData.data[index+0] = 0xff;
-          imageData.data[index+1] = 0x00;
+          imageData.data[index+1] = Math.floor(r/radius*255);
           imageData.data[index+2] = 0x00;
           //rain.push({color:color, radius: r});
         }else{
