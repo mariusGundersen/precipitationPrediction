@@ -2,8 +2,10 @@ var http = require('http');
 var xml2js = require('xml2js');
 
 
-module.exports = function(cb){
-  // Request an RSS for a Twitter stream
+var lastFetch = 0;
+var cachedData = null;
+
+function fetch(cb){
   var request = http.get({
     host: 'api.yr.no',
     path: '/weatherapi/radar/1.4/available'
@@ -42,4 +44,19 @@ module.exports = function(cb){
       });
     });
   });
+}
+
+module.exports = function(cb){
+  // Request an RSS for a Twitter stream
+  
+  
+  if(new Date() - lastFetch > 60*1000){
+    fetch(function(err, data){
+      lastFetch = new Date() + 0;
+      cachedData = data;
+      cb(err, data);
+    });
+  }else{
+    cb(null, cachedData)
+  }
 };

@@ -1,6 +1,7 @@
 <!doctype html>
 
-<canvas id="canvas"></canvas>
+<canvas id="canvas1" style="position: relative"></canvas>
+<canvas id="canvas2"></canvas>
 
 <script src="bower_components/requirejs/require.js"></script>
 <script>
@@ -21,20 +22,33 @@
     }).then(function(available){
       return when.all(available.map(createImages));
     }).then(function(images){
+      return images.map(function(image){
+        image.rain = rainRadius(image.image, image.image.width>>1, image.image.height>>1);
+        return image;
+      })
+    }).then(function(images){
+      
+      var c1 = document.querySelector('#canvas1');
+      c1.width = images[0].image.width;
+      c1.height = images[0].image.height;
+      var ctx1 = c1.getContext('2d');
+      var c2 = document.querySelector('#canvas2');
+      c2.width = images[0].image.width;
+      c2.height = images[0].image.height;
+      var ctx2 = c2.getContext('2d');
+      
+      c1.addEventListener('click', function(event){
+        images.forEach(function(image){
+          image.rain = rainRadius(image.image, event.clientX, event.clientY);
+        })
+      });
       
       var index = 0;
-      var c = document.querySelector('canvas');//createElement('canvas');
-      var ctx = c.getContext('2d');
-      
-     // var nearestRain = rainRadius(images[0].image, images[0].image.width/2, images[0].image.height/2);
-      //console.log(nearestRain);
-      
+      var delay = 3;
       function showImage(){
-        c.width = images[index].image.width;
-        c.height = images[index].image.height;
-        ctx.drawImage(images[index].image, 0, 0);
-        
-        index = (index + 1) % images.length;
+        ctx1.drawImage(images[index>>delay].image, 0, 0);
+        ctx2.putImageData(images[index>>delay].rain, 0, 0);
+        index = (index + 1) % (images.length<<delay);
         
         window.requestAnimationFrame(showImage);
       }
@@ -78,39 +92,56 @@
       
       var rain = [];
       
-      loop(function(x, y){
+      loop(Math.max(_x, _y, imageData.width - _x, imageData.height - _y), function(x, y){
+        if(_x + x < 0
+           || _x + x > imageData.width
+           || _y + y < 0
+           || _y + y > imageData.height){
+          return
+        }
         var r = Math.sqrt(x*x + y*y);
         var index = ((_y+y)*image.width + (_x+x))*4;
-        var color = rgb2hsv(imageData[index], imageData[index+1], imageData[index+2]);
-        if(color.h < 100 && color.v > 50){
-          rain.push({color:color, radius: r});
+        var color = rgb2hsv(imageData.data[index], imageData.data[index+1], imageData.data[index+2]);
+        
+        //console.log(_x + x, _y + y, index, imageData.data[index], imageData.data[index+1], imageData.data[index+2]);
+        if(color.h < 100 && color.v > 70){
+          imageData.data[index+0] = 0xff;
+          imageData.data[index+1] = 0x00;
+          imageData.data[index+2] = 0x00;
+          //rain.push({color:color, radius: r});
+        }else{
+          //console.log(_x+x, _y+y, r, false);
+          imageData.data[index+0] = 0x00;
+          imageData.data[index+1] = 0x00;
+          imageData.data[index+2] = 0x00;
         }
       });
       
-      rain.sort(function(a, b){
-        return a.radius - b.radius;
-      });
-      return rain[0];
+      //rain.sort(function(a, b){
+      //  return a.radius - b.radius;
+      //});
+      //return rain[0];
+      return imageData;
     };
   });
   
   define('loop', [], function(){
-    return function(func){
-      for(var r=1; r<10; r++){
-        for(var y=_y-r; y<_y+r; y++){
-          var x = _x + r;
+    return function(radius, func){
+      for(var r=1; r<radius; r++){
+        for(var y=-r; y<r; y++){
+          var x = r;
           func(x, y);
         }
-        for(var x=_x+r; x>_x-r; x--){
-          var y = _y + r;
+        for(var x=r; x>-r; x--){
+          var y = r;
           func(x, y);
         }
-        for(var y=_y+r; y>_y-r; y--){
-          var x = _x - r;
+        for(var y=r; y>-r; y--){
+          var x = - r;
           func(x, y);
         }
-        for(var x=_x-r; x<_x+r; x++){
-          var y = _y - r;
+        for(var x=-r; x<r; x++){
+          var y = - r;
           func(x, y);
         }
       }
