@@ -1,0 +1,127 @@
+<!doctype html>
+
+<canvas id="canvas1" style="position: relative"></canvas>
+<canvas id="canvas2"></canvas>
+
+<script src="bower_components/requirejs/require.js"></script>
+<script>
+  
+  requirejs.config({
+    baseUrl:'/js',
+    packages: [
+      { name: 'when', location: '/bower_components/when', main: 'when' }
+    ]
+  });
+  
+  require(['getRadar', 'createImages', 'when', 'imageData', 'findRain'], function(getRadar, createImages, when, imageData, findRain){
+        
+    getRadar().then(function(data){
+      return data.radar.sort(function(a, b){
+        return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+      });
+    }).then(function(available){
+      return when.all(available.map(createImages));
+    }).then(function(images){
+      return when.all(images.map(function(image){
+        var rainData = imageData(image.image);
+        return findRain(image.url, rainData).then(function(data){
+          
+          image.rain = data;
+          return image;
+        });
+      }))
+    }).then(function(images){
+      
+      var c1 = document.querySelector('#canvas1');
+      c1.width = images[0].image.width;
+      c1.height = images[0].image.height;
+      var ctx1 = c1.getContext('2d');
+      var c2 = document.querySelector('#canvas2');
+      c2.width = images[0].image.width;
+      c2.height = images[0].image.height;
+      var ctx2 = c2.getContext('2d');
+      
+      c1.addEventListener('click', function(event){
+        images.forEach(function(image){
+          image.rain = rainRadius(image.image, event.x, event.y);
+        })
+      });
+      
+      var index = 0;
+      var delay = 3;
+      function showImage(){
+        ctx1.drawImage(images[index>>delay].image, 0, 0);
+        ctx2.putImageData(images[index>>delay].rain, 0, 0);
+        index = (index + 1) % (images.length<<delay);
+        
+        window.requestAnimationFrame(showImage);
+      }
+      
+      window.requestAnimationFrame(showImage);
+      
+    }).catch(function(err){
+      console.error(err.message, err.stack);
+    });
+    
+  });
+  
+  
+  
+  define('getRadar', ['promise', 'ajax'], function(promise, ajax){
+    
+    return ajax.bind(null, "/available");
+    
+  });
+  
+  define('createImages', ['promise'], function(promise){
+    return promise(function(entry, resolve, reject){
+      var obj = {
+        date: Date.parse(entry.date),
+        url: entry.url,
+        image: new Image()
+      };
+      obj.image.src = '/image/' + entry.url.substr(entry.url.indexOf('?'));
+      obj.image.onload = function(){
+        resolve(obj);
+      };
+      obj.image.onerror = reject;
+    });
+  });
+  
+  
+  
+  
+  
+  define('findRain', ['when'], function(when){
+    
+    var worker = new Worker('/js/worker.js');
+    
+    worker.onmessage = function(event){
+      console.log(event.data.id, event.data.imageData.data[0]);
+      images[event.data.id].resolve(event.data.imageData);
+    };
+    
+    var images = Object.create(null);
+    
+    return function(id, imageData){
+      
+      var data = (imageData.data);
+      
+      worker.postMessage({
+        id: id,
+        imageData: imageData,
+        x: imageData.width/2,
+        y: imageData.height/2
+      });
+            
+      images[id] = when.defer();
+      
+      return images[id].promise;      
+    };
+    
+  });
+  
+
+
+
+</script>

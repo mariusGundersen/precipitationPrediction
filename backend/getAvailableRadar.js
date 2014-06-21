@@ -10,7 +10,7 @@ function fetch(cb){
     host: 'api.yr.no',
     path: '/weatherapi/radar/1.4/available'
   }).on('response', function(res) {
-
+    
     var data = "";
 
     res.on('data', function(chunk){
