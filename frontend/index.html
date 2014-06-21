@@ -1,5 +1,11 @@
 <!doctype html>
 
+<style>
+*{
+  margin: 0;
+}
+</style>
+
 <canvas id="canvas1" style="position: relative"></canvas>
 <canvas id="canvas2"></canvas>
 
@@ -20,16 +26,17 @@
         return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
       });
     }).then(function(available){
-      return when.all(available.map(createImages));
-    }).then(function(images){
-      return when.all(images.map(function(image){
-        var rainData = imageData(image.image);
-        return findRain(image.url, rainData).then(function(data){
-          
-          image.rain = data;
-          return image;
+      return when.all(available.map(function(entry){
+        return createImages(entry)
+        .then(function(image){
+          image.imageData = imageData(image.image);
+          return findRain(image.url, image.imageData, image.imageData.width/2, image.imageData.height/2)
+          .then(function(data){
+            image.rain = data;
+            return image;
+          })
         });
-      }))
+      }));
     }).then(function(images){
       
       var c1 = document.querySelector('#canvas1');
@@ -42,8 +49,13 @@
       var ctx2 = c2.getContext('2d');
       
       c1.addEventListener('click', function(event){
+        console.log(event.pageX, event.pageY);
         images.forEach(function(image){
-          image.rain = rainRadius(image.image, event.x, event.y);
+            return findRain(image.url, image.imageData, event.pageX, event.pageY)
+          .then(function(data){
+            image.rain = data;
+            return image;
+          });
         })
       });
       
@@ -103,15 +115,15 @@
     
     var images = Object.create(null);
     
-    return function(id, imageData){
-      
+    return function(id, imageData, x, y){
+      console.log(id, x, y);
       var data = (imageData.data);
       
       worker.postMessage({
         id: id,
         imageData: imageData,
-        x: imageData.width/2,
-        y: imageData.height/2
+        x: x,
+        y: y
       });
             
       images[id] = when.defer();

@@ -1,8 +1,5 @@
 this.onmessage = function(event){
-  console.log(event.data.imageData.data[0]);
   var result = rainRadius(event.data.imageData, event.data.x, event.data.y);
-  
-  console.log(event.data.imageData.data[0]);
   
   postMessage({
     id: event.data.id,
@@ -41,7 +38,10 @@ function rainRadius(imageData, _x, _y){
     }
   });
 
-  console.log(imageData.data[0]);
+  var index = ((_y)*imageData.width + (_x))*4;
+  imageData.data[index+0] = 0xff;
+  imageData.data[index+1] = 0xff;
+  imageData.data[index+2] = 0xff;
   
   //rain.sort(function(a, b){
   //  return a.radius - b.radius;
