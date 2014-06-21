@@ -48,8 +48,14 @@
       c2.height = images[0].image.height;
       var ctx2 = c2.getContext('2d');
       
-      c1.addEventListener('click', function(event){
+      
+      var drag = {};
+      
+      c1.addEventListener('mousedown', function(event){
         console.log(event.pageX, event.pageY);
+        drag.dragging = true;
+        drag.startX = event.pageX;
+        drag.startY = event.pageY;
         images.forEach(function(image){
             return findRain(image.url, image.imageData, event.pageX, event.pageY)
           .then(function(data){
@@ -59,12 +65,37 @@
         })
       });
       
+      c1.addEventListener('mousemove', function(event){
+        if(drag.dragging){
+          var deltaX = event.pageX - drag.startX;
+          var deltaY = event.pageY - drag.startY;
+          var dist = Math.sqrt(deltaX*deltaX + deltaY*deltaY);
+          drag.dirX = deltaX/dist;
+          drag.dirY = deltaY/dist;        
+        }
+      });
+      
+      c1.addEventListener('mouseup', function(event){
+        if(drag.dragging){
+          drag.dragging = false;
+        }        
+      });
+      
       var index = 0;
       var delay = 3;
       function showImage(){
         ctx1.drawImage(images[index>>delay].image, 0, 0);
         ctx2.putImageData(images[index>>delay].rain, 0, 0);
         index = (index + 1) % (images.length<<delay);
+        
+        if(drag.dragging){
+          ctx2.beginPath();
+          ctx2.strokeStyle = "white";
+          ctx2.moveTo(drag.startX, drag.startY);
+          ctx2.lineTo(drag.startX + drag.dirX*100, drag.startY + drag.dirY*100);
+          ctx2.stroke();
+        }
+        
         
         window.requestAnimationFrame(showImage);
       }
