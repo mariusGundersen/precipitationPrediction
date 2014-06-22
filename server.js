@@ -1,18 +1,18 @@
 var connect = require('connect');
-var getAvailableRadar = require('./backend/getAvailableRadar');
 var getImage = require('./backend/getImage');
 var urlrouter = require('urlrouter');
+var fs = require('fs');
 
 
 connect()
 .use(urlrouter(function(app){
   app.get('/available', function(req, res, next){
-    getAvailableRadar(function(err, data){
-      res.end(JSON.stringify(data));
+    fs.readFile('data/available.json', function(err, data){
+      res.end(data);
     });
   });
-  app.get('/image/', function(req, res, next){
-    getImage('http://api.yr.no/weatherapi/radar/1.4/' + req._parsedUrl.search, res);
+  app.get('/image/:date', function(req, res, next){
+    fs.createReadStream('data/images/' + req.params.date.replace(/:/g, '_')+'.png').pipe(res);
   });
   
 }))

@@ -194,7 +194,7 @@
         url: entry.url,
         image: new Image()
       };
-      obj.image.src = '/image/' + entry.url.substr(entry.url.indexOf('?'));
+      obj.image.src = '/image/' + entry.date;
       obj.image.onload = function(){
         resolve(obj);
       };
@@ -264,9 +264,7 @@
   });
   
 define('plot', ['rickshaw'], function(Rickshaw){
-  
-  console.log(Array.prototype.sum);
-  
+    
   var graph = new Rickshaw.Graph( {
     element: document.getElementById("chart"),
     width: 960,
