@@ -49,10 +49,10 @@ function fetch(cb){
 module.exports = function(cb){
   // Request an RSS for a Twitter stream
   
-  
+  console.log(new Date() - lastFetch)
   if(new Date() - lastFetch > 60*1000){
     fetch(function(err, data){
-      lastFetch = new Date() + 0;
+      lastFetch = new Date();
       cachedData = data;
       cb(err, data);
     });
