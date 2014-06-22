@@ -25,7 +25,7 @@
     ]
   });
   
-  require(['getRadar', 'createImages', 'when', 'imageData', 'findRain', 'linearBestFit', 'plot'], function(getRadar, createImages, when, imageData, findRain, linearBestFit, plot){
+  require(['getRadar', 'createImages', 'when', 'imageData', 'promise', 'linearBestFit', 'plot'], function(getRadar, createImages, when, imageData, promise, linearBestFit, plot){
         
     getRadar().then(function(data){
       return data.radar.sort(function(a, b){
@@ -34,13 +34,17 @@
     }).then(function(available){
       return when.all(available.map(function(entry){
         return createImages(entry)
+        .then(promise(function(image, resolve, reject){
+          image.rain = new Image();
+          image.rain.src = '/rain/'+image.name;
+          image.rain.onload = function(){
+            resolve(image);
+          };
+          image.rain.onerror = reject;
+        }))
         .then(function(image){
-          image.imageData = imageData(image.image);
-          return findRain(image.url, image.imageData, image.imageData.width/2, image.imageData.height/2)
-          .then(function(data){
-            image.rain = data;
-            return image;
-          })
+          image.rainData = imageData(image.rain);
+          return image;
         });
       }));
     }).then(function(images){
@@ -62,13 +66,6 @@
         drag.dragging = true;
         drag.startX = event.pageX;
         drag.startY = event.pageY;
-        /*images.forEach(function(image){
-            return findRain(image.url, image.imageData, event.pageX, event.pageY)
-          .then(function(data){
-            image.rain = data;
-            return image;
-          });
-        })*/
       });
       
       c1.addEventListener('mousemove', function(event){
@@ -89,7 +86,7 @@
           var dirY = drag.dirY;
           var points = images.map(function(image){
             return sweep(dirX, dirY, 5).map(function(dir){
-              return {x: image.date.valueOf(), y: nearestRain(image.rain, dir.dirX, dir.dirY, drag.startX, drag.startY)};
+              return {x: image.date.valueOf(), y: nearestRain(image.rainData, dir.dirX, dir.dirY, drag.startX, drag.startY)};
             });
           }).map(function(entries){
             return {
@@ -126,15 +123,15 @@
       var delay = 3;
       function showImage(){
         ctx1.drawImage(images[index>>delay].image, 0, 0);
-        ctx2.putImageData(images[index>>delay].rain, 0, 0);
+        ctx2.putImageData(images[index>>delay].rainData, 0, 0);
         index = (index + 1) % (images.length<<delay);
         
         if(drag.dragging){
-          ctx2.beginPath();
-          ctx2.strokeStyle = "white";
-          ctx2.moveTo(drag.startX, drag.startY);
-          ctx2.lineTo(drag.startX + drag.dirX*100, drag.startY + drag.dirY*100);
-          ctx2.stroke();
+          ctx1.beginPath();
+          ctx1.strokeStyle = "white";
+          ctx1.moveTo(drag.startX, drag.startY);
+          ctx1.lineTo(drag.startX + drag.dirX*100, drag.startY + drag.dirY*100);
+          ctx1.stroke();
         }
         
         
@@ -190,6 +187,7 @@
   define('createImages', ['promise'], function(promise){
     return promise(function(entry, resolve, reject){
       var obj = {
+        name: entry.date,
         date: Date.parse(entry.date),
         url: entry.url,
         image: new Image()
@@ -232,35 +230,6 @@
         return a+b;
       }, 0)
     }
-  });
-  
-  define('findRain', ['when'], function(when){
-    
-    var worker = new Worker('/js/worker.js');
-    
-    worker.onmessage = function(event){
-      console.log(event.data.id, event.data.imageData.data[0]);
-      images[event.data.id].resolve(event.data.imageData);
-    };
-    
-    var images = Object.create(null);
-    
-    return function(id, imageData, x, y){
-      console.log(id, x, y);
-      var data = (imageData.data);
-      
-      worker.postMessage({
-        id: id,
-        imageData: imageData,
-        x: x,
-        y: y
-      });
-            
-      images[id] = when.defer();
-      
-      return images[id].promise;      
-    };
-    
   });
   
 define('plot', ['rickshaw'], function(Rickshaw){
