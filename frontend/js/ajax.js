@@ -1,11 +1,10 @@
 define('ajax', ['promise'], function(promise){
 
   return promise(function(url, resolve, reject){
-    console.log("ajax", url);
+    
     var xhr = new XMLHttpRequest();
 
     xhr.onload = function(){
-      console.log(xhr.responseText);
       resolve(JSON.parse(xhr.responseText));
     };
 
@@ -15,7 +14,7 @@ define('ajax', ['promise'], function(promise){
 
 
     xhr.onreadystatechange = function(){
-      console.log("readystate", xhr.readyState, xhr.status);
+      //console.log("readystate", xhr.readyState, xhr.status);
     };
 
 

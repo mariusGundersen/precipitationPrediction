@@ -4,13 +4,24 @@
 *{
   margin: 0;
 }
+  
+canvas{
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+#canvas1{
+  opacity: 0.5;
+}
 </style>
 <link rel="stylesheet" href="/bower_components/rickshaw/rickshaw.css" />
 
-<canvas id="canvas1" style="position: relative"></canvas>
 <canvas id="canvas2"></canvas>
+<canvas id="canvas1"></canvas>
+
 <div id="chart"></div>
 
+<script src="js/extensions.js"></script>
 <script src="bower_components/requirejs/require.js"></script>
 <script>
   
@@ -25,7 +36,7 @@
     ]
   });
   
-  require(['getRadar', 'createImages', 'when', 'imageData', 'promise', 'linearBestFit', 'plot'], function(getRadar, createImages, when, imageData, promise, linearBestFit, plot){
+  require(['getRadar', 'createImages', 'when', 'imageData', 'promise', 'findRain', 'plot'], function(getRadar, createImages, when, imageData, promise, findRain, plot){
         
     getRadar().then(function(data){
       return data.radar.sort(function(a, b){
@@ -70,52 +81,41 @@
       
       c1.addEventListener('mousemove', function(event){
         if(drag.dragging){
-          var deltaX = event.pageX - drag.startX;
-          var deltaY = event.pageY - drag.startY;
-          var dist = Math.sqrt(deltaX*deltaX + deltaY*deltaY);
-          drag.dirX = deltaX/dist;
-          drag.dirY = deltaY/dist;        
+          drag.startX = event.pageX;
+          drag.startY = event.pageY;   
         }
       });
       
       c1.addEventListener('mouseup', function(event){
         if(drag.dragging){
           drag.dragging = false;
-          var start = images[0].date.valueOf();
-          var dirX = drag.dirX;
-          var dirY = drag.dirY;
-          var points = images.map(function(image){
-            return sweep(dirX, dirY, 5).map(function(dir){
-              return {x: image.date.valueOf(), y: nearestRain(image.rainData, dir.dirX, dir.dirY, drag.startX, drag.startY)};
-            });
-          }).map(function(entries){
-            return {
-              x: entries[0].x, 
-              y: entries
-                .select("y")
-                .filter(function(e){
-                  return e != Infinity;
-                })
-                .sort()
-                .skip(1)
-                .reverse()
-                .skip(1)
-                .sum()/entries.length
-             };
-          });
-                    
-          console.log(points.map(function(point){return point.x+", "+point.y;}));
+          drag.startX = event.pageX;
+          drag.startY = event.pageY;
           
+          var firstRain = Number.range(0, 16).map(function(i){
+            
+            var a = i/16*2*Math.PI;
+            
+            var dirX = Math.cos(a);
+            var dirY = Math.sin(a);
+            
+            var result = findRain(images, drag.startX, drag.startY, dirX, dirY);
+            
+            result.direction = a*180/Math.PI;
+            
+            return result;
+            
+          }).filter(function(entry){
+            return entry.willHappen;
+          }).sort(function(a, b){
+            return a.error < b.error ? -1 : a.error > b.error ? 1 : 0;
+          })[0];
           
-          plot(points.map(function(entry){
-            return {x: entry.x/1000, y: entry.y};
-          }));
-          
-          var bestFit = linearBestFit(points.map(function(entry){
-            return {x: (entry.x - start)/60000, y: entry.y};
-          }));
-          console.log(bestFit);
-          console.log(new Date(bestFit.x*60000 + start));
+          if(firstRain){
+            console.log(firstRain);
+
+            plot(firstRain.points);
+          }
         }        
       });
       
@@ -146,36 +146,7 @@
     
   });
   
-  function nearestRain(rain, dirX, dirY, startX, startY){
-    for(var i=0; i<200; i++){
-      var x = Math.round(startX + dirX*i);
-      var y = Math.round(startY + dirY*i);
-
-      var isRain = rain.data[(y*rain.width + x)*4];
-      rain.data[(y*rain.width + x)*4 + 2] = 0xff;
-      if(isRain){
-        return i;
-      }
-    }
-    return Infinity;
-  }
   
-  function sweep(dirX, dirY, degrees){
-    var angles = [];
-    var resolution = 10
-    
-    var radians = degrees*Math.PI/180;
-    
-    for(var i=-resolution; i<resolution; i++){
-      var a = Math.atan2(dirY, dirX) + radians/resolution*i;
-      angles.push({
-        dirX: Math.cos(a),
-        dirY: Math.sin(a)
-      });
-    }
-    
-    return angles;
-  }
   
   
   define('getRadar', ['promise', 'ajax'], function(promise, ajax){
@@ -200,61 +171,6 @@
     });
   });
   
-  console.log(Array.prototype.select);
-  
-  Object.defineProperty(Array.prototype, "select", {
-    enumerable: false,
-    writable: true,
-    value: function(prop){
-      return this.map(function(entry){
-        return entry[prop];
-      })
-    }
-  });
-  
-  Object.defineProperty(Array.prototype, "skip", {
-    enumerable: false,
-    writable: true,
-    value: function(n){
-      return this.filter(function(e, i){
-        return i>=n;
-      })
-  }
-  });
-  
-  Object.defineProperty(Array.prototype, "sum", {
-    enumerable: false,
-    writable: true,
-    value: function(){
-      return this.reduce(function(a,b){
-        return a+b;
-      }, 0)
-    }
-  });
-  
-define('plot', ['rickshaw'], function(Rickshaw){
-    
-  var graph = new Rickshaw.Graph( {
-    element: document.getElementById("chart"),
-    width: 960,
-    height: 500,
-    renderer: 'scatterplot',
-    series: [{
-      color: "#ff9030",
-      data: [],
-      name: "rain"
-    }]
-  });
-
-  graph.renderer.dotSize = 6;
-
-  new Rickshaw.Graph.HoverDetail({ graph: graph });
-  
-  return function (points){
-    graph.series[0].data = points;
-    graph.render();
-  }
-});
 
 
 </script>
