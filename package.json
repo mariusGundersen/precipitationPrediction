@@ -6,7 +6,9 @@
   "dependencies": {
     "connect": "~2.14.3",
     "xml2js": "~0.4.2",
-    "urlrouter": "~0.5.4"
+    "urlrouter": "~0.5.4",
+    "save-pixels": "^1.0.0",
+    "get-pixels": "^1.1.0"
   },
   "devDependencies": {},
   "scripts": {

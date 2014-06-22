@@ -11,8 +11,13 @@ connect()
       res.end(data);
     });
   });
+  
   app.get('/image/:date', function(req, res, next){
-    fs.createReadStream('data/images/' + req.params.date.replace(/:/g, '_')+'.png').pipe(res);
+    fs.createReadStream('data/images/' + req.params.date.replace(/:/g, '_')+'.gif').pipe(res);
+  });
+  
+  app.get('/rain/:date', function(req, res, next){
+    fs.createReadStream('data/rain/' + req.params.date.replace(/:/g, '_')+'.png').pipe(res);
   });
   
 }))
