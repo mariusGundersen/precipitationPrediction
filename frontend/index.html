@@ -5,21 +5,27 @@
   margin: 0;
 }
 </style>
+<link rel="stylesheet" href="/bower_components/rickshaw/rickshaw.css" />
 
 <canvas id="canvas1" style="position: relative"></canvas>
 <canvas id="canvas2"></canvas>
+<div id="chart"></div>
 
 <script src="bower_components/requirejs/require.js"></script>
 <script>
   
   requirejs.config({
     baseUrl:'/js',
+    paths:{
+      'd3': '/bower_components/d3/d3',
+      'rickshaw': '/bower_components/rickshaw/rickshaw'
+    },
     packages: [
       { name: 'when', location: '/bower_components/when', main: 'when' }
     ]
   });
   
-  require(['getRadar', 'createImages', 'when', 'imageData', 'findRain', 'linearBestFit'], function(getRadar, createImages, when, imageData, findRain, linearBestFit){
+  require(['getRadar', 'createImages', 'when', 'imageData', 'findRain', 'linearBestFit', 'plot'], function(getRadar, createImages, when, imageData, findRain, linearBestFit, plot){
         
     getRadar().then(function(data){
       return data.radar.sort(function(a, b){
@@ -82,16 +88,37 @@
           var dirX = drag.dirX;
           var dirY = drag.dirY;
           var points = images.map(function(image){
-            return sweep(dirX, dirY, 15).map(function(dir){
-              return {x: image.date - start, y: nearestRain(image.rain, dir.dirX, dir.dirY, drag.startX, drag.startY)};
+            return sweep(dirX, dirY, 5).map(function(dir){
+              return {x: image.date.valueOf(), y: nearestRain(image.rain, dir.dirX, dir.dirY, drag.startX, drag.startY)};
             });
-          }).reduce(function(a, b){
-            return a.concat(b);
-          }, []);
+          }).map(function(entries){
+            return {
+              x: entries[0].x, 
+              y: entries
+                .select("y")
+                .filter(function(e){
+                  return e != Infinity;
+                })
+                .sort()
+                .skip(1)
+                .reverse()
+                .skip(1)
+                .sum()/entries.length
+             };
+          });
+                    
           console.log(points.map(function(point){return point.x+", "+point.y;}));
-          var bestFit = linearBestFit(points);
+          
+          
+          plot(points.map(function(entry){
+            return {x: entry.x/1000, y: entry.y};
+          }));
+          
+          var bestFit = linearBestFit(points.map(function(entry){
+            return {x: (entry.x - start)/60000, y: entry.y};
+          }));
           console.log(bestFit);
-          console.log(new Date(bestFit.b + start));
+          console.log(new Date(bestFit.x*60000 + start));
         }        
       });
       
@@ -133,7 +160,7 @@
         return i;
       }
     }
-    return 200;
+    return Infinity;
   }
   
   function sweep(dirX, dirY, degrees){
@@ -175,9 +202,37 @@
     });
   });
   
+  console.log(Array.prototype.select);
   
+  Object.defineProperty(Array.prototype, "select", {
+    enumerable: false,
+    writable: true,
+    value: function(prop){
+      return this.map(function(entry){
+        return entry[prop];
+      })
+    }
+  });
   
+  Object.defineProperty(Array.prototype, "skip", {
+    enumerable: false,
+    writable: true,
+    value: function(n){
+      return this.filter(function(e, i){
+        return i>=n;
+      })
+  }
+  });
   
+  Object.defineProperty(Array.prototype, "sum", {
+    enumerable: false,
+    writable: true,
+    value: function(){
+      return this.reduce(function(a,b){
+        return a+b;
+      }, 0)
+    }
+  });
   
   define('findRain', ['when'], function(when){
     
@@ -208,7 +263,31 @@
     
   });
   
+define('plot', ['rickshaw'], function(Rickshaw){
+  
+  console.log(Array.prototype.sum);
+  
+  var graph = new Rickshaw.Graph( {
+    element: document.getElementById("chart"),
+    width: 960,
+    height: 500,
+    renderer: 'scatterplot',
+    series: [{
+      color: "#ff9030",
+      data: [],
+      name: "rain"
+    }]
+  });
 
+  graph.renderer.dotSize = 6;
+
+  new Rickshaw.Graph.HoverDetail({ graph: graph });
+  
+  return function (points){
+    graph.series[0].data = points;
+    graph.render();
+  }
+});
 
 
 </script>

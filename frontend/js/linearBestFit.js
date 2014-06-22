@@ -36,6 +36,8 @@ define(function(){
     
     var b = avgY - m*avgX;
     
+    var x0 = -b/m; 
+    
     var e = values.map(function(entry){
       return entry.y - (b + entry.x*m);
     });
@@ -49,7 +51,8 @@ define(function(){
     return {
       m: m,
       b: b,
-      e: sumE2
+      e: sumE2,
+      x: x0
     };
   };
   
