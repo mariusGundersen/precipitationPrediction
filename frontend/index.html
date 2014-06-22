@@ -19,7 +19,7 @@
     ]
   });
   
-  require(['getRadar', 'createImages', 'when', 'imageData', 'findRain'], function(getRadar, createImages, when, imageData, findRain){
+  require(['getRadar', 'createImages', 'when', 'imageData', 'findRain', 'linearBestFit'], function(getRadar, createImages, when, imageData, findRain, linearBestFit){
         
     getRadar().then(function(data){
       return data.radar.sort(function(a, b){
@@ -38,7 +38,7 @@
         });
       }));
     }).then(function(images){
-      
+            
       var c1 = document.querySelector('#canvas1');
       c1.width = images[0].image.width;
       c1.height = images[0].image.height;
@@ -56,13 +56,13 @@
         drag.dragging = true;
         drag.startX = event.pageX;
         drag.startY = event.pageY;
-        images.forEach(function(image){
+        /*images.forEach(function(image){
             return findRain(image.url, image.imageData, event.pageX, event.pageY)
           .then(function(data){
             image.rain = data;
             return image;
           });
-        })
+        })*/
       });
       
       c1.addEventListener('mousemove', function(event){
@@ -78,6 +78,20 @@
       c1.addEventListener('mouseup', function(event){
         if(drag.dragging){
           drag.dragging = false;
+          var start = images[0].date.valueOf();
+          var dirX = drag.dirX;
+          var dirY = drag.dirY;
+          var points = images.map(function(image){
+            return sweep(dirX, dirY, 15).map(function(dir){
+              return {x: image.date - start, y: nearestRain(image.rain, dir.dirX, dir.dirY, drag.startX, drag.startY)};
+            });
+          }).reduce(function(a, b){
+            return a.concat(b);
+          }, []);
+          console.log(points.map(function(point){return point.x+", "+point.y;}));
+          var bestFit = linearBestFit(points);
+          console.log(bestFit);
+          console.log(new Date(bestFit.b + start));
         }        
       });
       
@@ -108,6 +122,36 @@
     
   });
   
+  function nearestRain(rain, dirX, dirY, startX, startY){
+    for(var i=0; i<200; i++){
+      var x = Math.round(startX + dirX*i);
+      var y = Math.round(startY + dirY*i);
+
+      var isRain = rain.data[(y*rain.width + x)*4];
+      rain.data[(y*rain.width + x)*4 + 2] = 0xff;
+      if(isRain){
+        return i;
+      }
+    }
+    return 200;
+  }
+  
+  function sweep(dirX, dirY, degrees){
+    var angles = [];
+    var resolution = 10
+    
+    var radians = degrees*Math.PI/180;
+    
+    for(var i=-resolution; i<resolution; i++){
+      var a = Math.atan2(dirY, dirX) + radians/resolution*i;
+      angles.push({
+        dirX: Math.cos(a),
+        dirY: Math.sin(a)
+      });
+    }
+    
+    return angles;
+  }
   
   
   define('getRadar', ['promise', 'ajax'], function(promise, ajax){
